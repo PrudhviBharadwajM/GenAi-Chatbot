@@ -29,17 +29,20 @@ public class DocumentStore
 		if (idList.Count == 0) return [];
 
 		using SqliteConnection connection = new SqliteConnection($"Data Source={DbFile}");
+		connection.Open();
 		using SqliteCommand cmd = connection.CreateCommand();
 
 		List<string> parameterNames = new List<string>(idList.Count);
 		for (int i = 0; i < idList.Count; i++)
 		{
-			string paramName = $"p" + i;
+			string paramName = $"$p{i}";
 			parameterNames.Add(paramName);
 			cmd.Parameters.AddWithValue(paramName, idList[i]);
 		}
 
-		string orderByCase = string.Join(" ", idList.Select((id, index) => $"WHEN $p{index} THEN {index}")) + "END";
+		string orderByCase = "CASE Id " +
+			string.Join(" ", idList.Select((id, i) => $"WHEN $p{i} THEN {i}")) +
+			" END";
 
 		cmd.CommandText = $@"
 			SELECT Id, Title, Content, PageUrl

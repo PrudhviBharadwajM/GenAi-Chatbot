@@ -1,0 +1,24 @@
+﻿using GenAiBot.Services;
+using Microsoft.Extensions.AI;
+using Pinecone;
+
+namespace GenAiBot;
+
+static class Startup
+{
+	public static void ConfigureServices(WebApplicationBuilder builder)
+	{
+		string openAiKey = Utils.RequireEnv(builder, "OPENAI_API_KEY");
+		string pineconeKey = Utils.RequireEnv(builder, "PINECONE_API_KEY");
+
+		builder.Services.AddSingleton<StringEmbeddingGenerator>(s => new OpenAI.Embeddings.EmbeddingClient(
+			model : "text-embedding-3-small",
+			apiKey : openAiKey).AsIEmbeddingGenerator());
+
+		builder.Services.AddSingleton<IndexClient>(s => new PineconeClient(pineconeKey).Index("wikipedia-landmarks"));
+
+		builder.Services.AddSingleton<DocumentStore>();
+		builder.Services.AddSingleton<WikipediaClient>();
+		builder.Services.AddSingleton<IndexBuilder>();
+	}
+}

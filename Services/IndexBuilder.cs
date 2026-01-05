@@ -1,33 +1,48 @@
 ﻿using Pinecone;
 using Microsoft.Extensions.AI;
+using System.Collections.Immutable;
 
 namespace GenAiBot.Services;
 
-public class IndexBuilder(StringEmbeddingGenerator embeddingGenerator,IndexClient pineconeIndex, WikipediaClient wikipediaClient, DocumentStore documentStore)
+public class IndexBuilder(StringEmbeddingGenerator embeddingGenerator, IndexClient pineconeIndex, WikipediaClient wikipediaClient, DocumentChunkStore chunkStore, ArticleSplitter splitter)
 {
-	public async Task BuildDocumentIndexAsync(string[] pageTitles)
+	public async Task BuilderIndex(string[] pageTitles)
 	{
-		foreach (string landmark in pageTitles)
+		foreach (string pageTitle in pageTitles)
 		{
-			var wikiPage = await wikipediaClient.GetWikipediaPageForTitle(landmark);
-			var embedding = await embeddingGenerator.GenerateAsync([wikiPage.Content], new EmbeddingGenerationOptions { Dimensions = 512 });
-			var vectorArray = embedding[0].Vector.ToArray();
+			var page = await wikipediaClient.GetWikipediaPageForTitle(pageTitle, full: true);
+			var sections = wikipediaClient.SplitIntoSections(page.Content);
+			var chunks = sections.SelectMany(section => 
+				splitter.Chunk(page.Title, section.Content, page.PageUrl, section.Title)
+			).Take(25)
+			 .ToImmutableList();
 
-			var pineconeVector = new Vector
+			var stringsToEmbed = chunks.Select(c => $"{c.Title} > {c.Section}\n\n{c.Content}");
+
+			var embeddings = await embeddingGenerator.GenerateAsync(stringsToEmbed, new EmbeddingGenerationOptions { Dimensions = 512 });
+
+			var vectors = chunks.Select((chunk, Index) => new Vector
 			{
-				Id = wikiPage.Id,
-				Values = vectorArray,
+				Id = chunk.Id,
+				Values = embeddings[Index].Vector.ToArray(),
 				Metadata = new Metadata
 				{
-					{ "title", wikiPage.Title },
+					{ "title", chunk.Title },
+					{ "section", chunk.Section },
+					{ "chunk_index", chunk.ChunkIndex },
 				}
-			};
+			});
 
-			await pineconeIndex.UpsertAsync(new UpsertRequest { Vectors = [pineconeVector] });
+			await pineconeIndex.UpsertAsync(new UpsertRequest
+			{
+				Vectors = vectors
+			});
 
-			// Save the document to Sqlite.
-			documentStore.SaveDocuments(wikiPage);
+			// Save chunks to content store
+			foreach (var chunk in chunks)
+			{
+				chunkStore.SaveDocuments(chunk);
+			}
 		}
-
 	}
 }

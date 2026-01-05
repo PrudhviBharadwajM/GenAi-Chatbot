@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace GenAiBot.Services;
 
@@ -109,6 +110,41 @@ public partial class WikipediaClient
 	{
 		string url = GetWikipediaPageUrl(pageTitle, full);
 		return await GetWikipediaPage(url);
+	}
+
+	[GeneratedRegex(@"^\s*=+\s*(.+?)\s*=+\s*", RegexOptions.Multiline | RegexOptions.Compiled)]
+	private static partial Regex HeaderRegex();
+
+	public IEnumerable<(string Title, string Content)> SplitIntoSections(string articleText)
+	{
+		var matches = HeaderRegex().Matches(articleText);
+
+		if (matches.Count == 0)
+		{
+			yield return ("Introduction", articleText[..]);
+			yield break;
+		}
+
+		if (matches[0].Index > 0)
+		{
+			yield return ("Introduction", articleText[..matches[0].Index]);
+		}
+
+		for (int i = 0; i < matches.Count; i++)
+		{
+			var m = matches[i];
+			string sectionName = m.Groups[1].Value.Trim();
+			
+			if(sectionName is "See also" or "References" or "External links" or "Notes")
+				continue;
+
+			int bodyStart = m.Index + m.Length;
+			int bodyEnd = (i < matches.Count - 1) ? matches[i + 1].Index : articleText.Length;
+			int length = bodyEnd - bodyStart;
+			var content = articleText.Substring(bodyStart, length).Trim();
+			yield return (sectionName, content);
+		}
+
 	}
 
 }

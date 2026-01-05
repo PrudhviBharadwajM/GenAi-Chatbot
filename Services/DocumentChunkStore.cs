@@ -3,27 +3,29 @@ using Microsoft.Data.Sqlite;
 
 namespace GenAiBot.Services;
 
-public class DocumentStore
+public class DocumentChunkStore
 {
-	private const string DbFile = "DocumentStore.db";
+	private const string DbFile = "DocumentChunkStore.db";
 
-	static DocumentStore()
+	static DocumentChunkStore()
 	{
 		using SqliteConnection connection = new SqliteConnection($"Data Source={DbFile}");
 		connection.Open();
 		using SqliteCommand command = connection.CreateCommand();
 		command.CommandText = @"
-				CREATE TABLE IF NOT EXISTS Documents (
+				CREATE TABLE IF NOT EXISTS Chunks (
 					Id TEXT PRIMARY KEY,
 					Title TEXT,
+					Section TEXT,
+					ChunkIndex INTEGER,
 					Content TEXT,
-					PageUrl TEXT
+					SourcePageUrl TEXT
 				);";
 
 		command.ExecuteNonQuery();
 	}
 
-	public List<Document> GetDocuments(IEnumerable<string> ids)
+	public List<DocumentChunk> GetDocumentsChunks(IEnumerable<string> ids)
 	{
 		List<string> idList = ids.Distinct().ToList() ?? [];
 		if (idList.Count == 0) return [];
@@ -45,38 +47,42 @@ public class DocumentStore
 			" END";
 
 		cmd.CommandText = $@"
-			SELECT Id, Title, Content, PageUrl
-			FROM Documents
+			SELECT Id, Title, Section, ChunkIndex, Content, SourcePageUrl
+			FROM Chunks
 			WHERE Id IN ({string.Join(", ", parameterNames)})
 			ORDER BY {orderByCase};";
 
-		var results = new List<Document>();
+		var results = new List<DocumentChunk>();
 		using var reader = cmd.ExecuteReader();
 		while (reader.Read())
 		{
-			var doc = new Document(
+			var doc = new DocumentChunk(
 				Id: reader.GetString(0),
 				Title: reader.GetString(1),
-				Content: reader.GetString(2),
-				PageUrl: reader.GetString(3)
+				Section: reader.GetString(2),
+				ChunkIndex: reader.GetInt32(3),
+				Content: reader.GetString(4),
+				SourcePageUrl: reader.GetString(5)
 			);
 			results.Add(doc);
 		}
 		return results;
 	}
 
-	public void SaveDocuments(Document document)
+	public void SaveDocuments(DocumentChunk chunk)
 	{
 		using var connection = new SqliteConnection($"Data Source={DbFile}");
 		connection.Open();
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = @"
-			INSERT OR REPLACE INTO Documents (Id, Title, Content, PageUrl)
-			VALUES ($id, $title, $content, $pageUrl);";
-		cmd.Parameters.AddWithValue("$id", document.Id);
-		cmd.Parameters.AddWithValue("$title", document.Title);
-		cmd.Parameters.AddWithValue("$content", document.Content);
-		cmd.Parameters.AddWithValue("$pageUrl", document.PageUrl);
+			INSERT OR REPLACE INTO Chunks (Id, Title, Section, ChunkIndex, Content, SourcePageUrl)
+			VALUES ($id, $title, $section, $chunkIndex, $content, $sourcePageUrl);";
+		cmd.Parameters.AddWithValue("$id", chunk.Id);
+		cmd.Parameters.AddWithValue("$title", chunk.Title);
+		cmd.Parameters.AddWithValue("$section", chunk.Section);
+		cmd.Parameters.AddWithValue("$chunkIndex", chunk.ChunkIndex);
+		cmd.Parameters.AddWithValue("$content", chunk.Content);
+		cmd.Parameters.AddWithValue("$sourcePageUrl", chunk.SourcePageUrl);
 		cmd.ExecuteNonQuery();
 	}
 }

@@ -3,9 +3,9 @@ using Pinecone;
 
 namespace GenAiBot.Services;
 
-public class VectorSearchService(StringEmbeddingGenerator embeddingGenerator, IndexClient pineConeIndex, DocumentStore contentStore)
+public class VectorSearchService(StringEmbeddingGenerator embeddingGenerator, IndexClient pineConeIndex, DocumentChunkStore contentStore)
 {
-	public async Task<List<Document>> FindTopKArticles(string query, int k)
+	public async Task<List<DocumentChunk>> FindTopKArticles(string query, int k)
 	{
 		if (string.IsNullOrWhiteSpace(query))
 		{
@@ -31,7 +31,7 @@ public class VectorSearchService(StringEmbeddingGenerator embeddingGenerator, In
 		}
 		var ids = matches.Select(m => m.Id!).Where(id => !string.IsNullOrWhiteSpace(id)).ToList();
 
-		var articles = contentStore.GetDocuments(ids);
+		var articles = contentStore.GetDocumentsChunks(ids);
 		var scorebyId = matches.Where(m => m.Id is not null).ToDictionary(m => m.Id!, m => m.Score);
 
 		var sortedArticles = articles.OrderByDescending(a => scorebyId.GetValueOrDefault(a.Id, 0f))

@@ -5,11 +5,11 @@ var builder = WebApplication.CreateBuilder(args);
 Startup.ConfigureServices(builder);
 var app = builder.Build();
 
-/* Build the document index on startup 
+//Build the document index on startup 
 var indexer = app.Services.GetRequiredService<IndexBuilder>();
-await indexer.BuildDocumentIndexAsync(SourceData.LandmarkNames);
+await indexer.BuilderIndex(SourceData.LandmarkNames);
 Console.WriteLine("Document index built successfully.");
-*/
+
 
 app.UseCors("FrontendCors");
 

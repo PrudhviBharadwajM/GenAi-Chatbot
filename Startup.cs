@@ -17,7 +17,6 @@ static class Startup
 			options.AddPolicy("FrontendCors", policy => policy.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod());
 		});
 
-		builder.Services.AddSingleton<VectorSearchService>();
 
 		builder.Services.AddSingleton<StringEmbeddingGenerator>(s => new OpenAI.Embeddings.EmbeddingClient(
 			model : "text-embedding-3-small",
@@ -25,6 +24,25 @@ static class Startup
 
 		builder.Services.AddSingleton<IndexClient>(s => new PineconeClient(pineconeKey).Index("landmark-chunks"));
 
+		builder.Services.AddLogging(logging => logging.AddConsole().SetMinimumLevel(LogLevel.Information));
+
+		builder.Services.AddSingleton<ILoggerFactory>(s => LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Information)));
+
+		builder.Services.AddSingleton<IChatClient>(s =>
+		{
+			var loggerFactory = s.GetRequiredService<ILoggerFactory>();
+			var client = new OpenAI.Chat.ChatClient(
+				model: "gpt-5-mini",
+				apiKey: openAiKey).AsIChatClient();
+
+			return new ChatClientBuilder(client).UseLogging(loggerFactory).UseFunctionInvocation(loggerFactory, c => { c.IncludeDetailedErrors = true; }).Build(s);
+		});
+
+		builder.Services.AddTransient<ChatOptions>(s => new ChatOptions { });
+
+		builder.Services.AddSingleton<RagQuestionService>();
+		builder.Services.AddSingleton<PromptService>();
+		builder.Services.AddSingleton<VectorSearchService>();
 		builder.Services.AddSingleton<DocumentChunkStore>();
 		builder.Services.AddSingleton<WikipediaClient>();
 		builder.Services.AddSingleton<IndexBuilder>();

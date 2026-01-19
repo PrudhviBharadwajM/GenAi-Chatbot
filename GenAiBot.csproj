@@ -15,4 +15,9 @@
     <PackageReference Include="Pinecone.Client" Version="4.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+	  <None Include="Prompts\*.txt">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+  </ItemGroup>
 </Project>

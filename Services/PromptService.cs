@@ -8,7 +8,7 @@ public class PromptService
 	{
 		var promptsDirectory = Path.Combine(AppContext.BaseDirectory, "Prompts");
 
-		foreach(var promptName in new[] { "RagSystemPrompt" })
+		foreach(var promptName in new[] { "RagSystemPrompt", "HydePrompt" })
 		{
 			var promptText = File.ReadAllText(Path.Combine(promptsDirectory,promptName +".txt"));
 			_prompts[promptName] = promptText;
@@ -16,4 +16,5 @@ public class PromptService
 	}
 
 	public string RagSystemPrompt => _prompts["RagSystemPrompt"];
+	public string HydePrompt => _prompts["HydePrompt"];
 }

@@ -2,11 +2,11 @@
 
 namespace GenAiBot.Services;
 
-public class RagQuestionService(VectorSearchService vectorSearch, IChatClient client, ChatOptions chatOptions, PromptService promptService)
+public class RagQuestionService(VectorSearchServiceWithHyde vectorSearch, IChatClient client, ChatOptions chatOptions, PromptService promptService)
 {
 	public async Task<string> AnswerQuestion(string question)
 	{
-		var searchResults = await vectorSearch.FindTopKArticles(question, 5);
+		var searchResults = await vectorSearch.FindTopKChunks(question, 5);
 
 		var systemPrompt = promptService.RagSystemPrompt;
 

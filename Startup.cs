@@ -47,5 +47,6 @@ static class Startup
 		builder.Services.AddSingleton<WikipediaClient>();
 		builder.Services.AddSingleton<IndexBuilder>();
 		builder.Services.AddSingleton<ArticleSplitter>();
+		builder.Services.AddSingleton<VectorSearchServiceWithHyde>();
 	}
 }
